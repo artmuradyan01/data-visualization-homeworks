@@ -1,0 +1,95 @@
+---
+title: "Homework 1"
+author: "Artyom Muradyan"
+date: "2025-02-05"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(readr)
+```
+
+1. Load the dataset. Check the first 5 rows.
+```{r}
+df <- read_csv("crime_data.csv")
+head(df)
+
+```
+2. Identify columns with missing values and their respective counts. Drop columns where more than
+50% of the data is missing (store this version as a new dataset).
+```{r}
+missing_counts <- colSums(is.na(df))
+missing_counts
+```
+```{r}
+columns_to_drop <- names(missing_counts[missing_counts > nrow(df) * 0.5])
+df_new <- df %>% select(-all_of(columns_to_drop))
+print(paste("Dropped columns:", paste(columns_to_drop, collapse=", ")))
+
+```
+
+3. Convert the DATE OCC column to a datetime format. Extract the year, month, and day into separate
+columns. Create a new column for the hour using the TIME OCC column.
+
+```{r}
+df_new <- df_new %>%
+  mutate(
+    `DATE OCC` = as.Date(`DATE OCC`, format="%m/%d/%Y"),
+    Year = format(`DATE OCC`, "%Y"),
+    Month = format(`DATE OCC`, "%m"),
+    Day = format(`DATE OCC`, "%d"),
+    Hour = as.numeric(substr(sprintf("%04d", `TIME OCC`), 1, 2))
+  )
+```
+
+4. Filter the dataset for crimes that occurred in 2023. Further filter crimes with the description
+BURGLARY in the Crm Cd Desc column.
+
+```{r}
+df_new %>%filter(Year == 2023 & `Crm Cd Desc` == "BURGLARY")
+```
+
+5. Group the data by AREA NAME and calculate the total number of crimes and the average victim age.
+Sort the results by total crimes in descending order.
+```{r}
+
+df_new %>%group_by(`AREA NAME`) %>%
+  summarise(Total_Crimes = n(), Avg_Victim_Age = mean(`Vict Age`, na.rm = TRUE)) %>%
+  arrange(desc(Total_Crimes))
+
+```
+
+
+
+ 3.1. Group by Month and count crimes
+```{r}
+df_new %>% group_by(Month) %>% summarise(Total_Crimes = n())
+
+```
+
+3.2. Count crimes where a weapon was used
+```{r}
+# Weapon Used Cd column was dropped, hence using the original df not the cleaned one
+df %>% filter(!is.na(`Weapon Used Cd`)) %>% summarise(Total_Crimes = n())
+
+```
+
+# 3. Group by Premis Desc and count crimes
+```{r}
+df_new %>% group_by(`Premis Desc`) %>% summarise(Total_Crimes = n())
+```
+
+4. Creating Severity Score
+```{r}
+# Weapon Used Cd column was dropped, hence using the original df not the cleaned one
+df <- df %>%
+  mutate(Severity_Score = ifelse(!is.na(`Weapon Used Cd`), 5, 0) +
+                              ifelse(`Crm Cd Desc` == "BURGLARY", 3, 0) + 1)
+
+df %>% group_by(`AREA NAME`) %>% summarise(Total_Severity_Score = sum(Severity_Score))
+
+```
+
+
